@@ -1,0 +1,95 @@
+   DATA SEGMENT
+   PORTA EQU 00H  ; address of every port 
+   PORTB EQU 02H
+   PORTC EQU 04H
+   PORT_CON EQU 06H
+   DATA ENDS         ;portA is used as input & rest are output
+
+      CODE SEGMENT 
+	   
+   org 0000h 
+
+   START:
+
+   mov al, 10010000b ; control word of 8255 ppi use al bec it is the only reg that can deal with 8255
+   out PORT_CON,al   ; pass the control word to the control port & uses inst. out due to its usage outside Mp
+   mov ax,0000h
+   mov bx,0000h
+   mov dl, 9Ah
+   mov DH,09H
+
+   BUT:
+
+   IN al, PORTA   ; enters the signal coming from portA (input) to al then cmp it with a known signal to know which state the counting will be 
+   cmp al, 11101111b 
+   je count_up_tens_units ; count up   "jump if equal"
+
+      IN al, PORTA
+      cmp al, 11011111b 
+      je  d999  ; count down
+      
+      IN al, PORTA
+      cmp al, 10111111b 
+      je  reset  ; reset 
+
+    jmp BUT 
+					 
+   count_up_tens_units:            ; units & tens
+   inc ah 
+   mov al,ah ;al = 0000 0001
+   clc  ;cf = 0
+   DAA ;if > 9  ex: A then A+6=16 then 16-16=0 and AZ=1 therefore Al=10h divide any no.>9 into 2 hexa no.s
+   out portb,al ; PortB contains units & tens 
+   cmp ah,99h
+   je count_up_hundreds ; jump if ah = 99h 
+   jmp BUT  ; jump if not & go to but: to check after every count up if the signal changed or no 
+
+   count_up_hundreds:       ; hundreds 
+   inc bh 
+   mov al,bh ; bh=0000 0001
+   clc 
+   DAA
+   out portc,al ; Portc contains hundreds 
+   cmp bh,0ah
+   je reset ; jump if bh = 09h
+   jmp but ;jump if not & go to but: to check after every count up in hundreds if the signal changed or no
+
+
+       d999:
+      mov al,DH
+      clc 
+      DAS
+      out portc,al
+
+     count_down_tens_units:    ; units & tens
+      dec dl 
+      mov al,dl
+      clc 
+      DAS
+      out portb, al 
+      cmp dl,00h
+      je count_down_hundreds
+      jmp BUT
+
+      count_down_hundreds:      ; hundreds
+      dec DH 
+      mov al,DH
+      clc 
+      DAS 
+      out portc,al
+      cmp DH,00h
+      je reset 
+      jmp but 
+
+   reset:
+   mov ax,00h
+   mov bx,00h
+   mov cx,00h
+   mov dx,00h
+   out portb,al
+   out portc,al
+   jmp BUT
+
+
+   CODE    ENDS
+	   END START
